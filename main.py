@@ -75,7 +75,7 @@ class save_to_HANA(object):
             password = "CloudFoundry_productive_account_password")
 
         cursor = connection.cursor()
-        cursor.execute("INSERT INTO ELPIS_TABLE VALUES {}".format(data))
+        cursor.execute("INSERT INTO SOME_TABLE VALUES {}".format(data))
         cursor.fetchone()
         connection.close()
 
