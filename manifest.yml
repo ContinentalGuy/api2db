@@ -1,0 +1,6 @@
+---
+applications:
+- name: elpisfacemetricapi
+  memory: 64M
+  command: python main.py
+  buildpack: https://github.com/cloudfoundry/buildpack-python.git
