@@ -1,5 +1,6 @@
 #!flask/bin/python
 import os
+import sys
 import pyhdb
 from flask import Flask, jsonify, request, json
 
@@ -11,19 +12,29 @@ tasks = [
         'id': 0,
         'title': u'Create GET function',
         'description': u'This function shows list of todo items.\n And this item is already done :)',
+        'link': '/api/v1.0/task',
         'done': True
     },
     {
         'id': 1,
         'title': u'Create POST function',
         'description': u'POST function is located on /api/v1.0/save',
+        'url': '/api/v1.0/save',
         'done': True
     },
     {
         'id': 2,
         'title': u'Create connection to DB',
         'description': u'Create binding from this API to HANA DB in Cloud foundry environment.',
-        'done': False
+        'url': '/api/v2.0/db',
+        'done': True
+    },
+    {
+        'id': 3,
+        'title': u'Insert values into table',
+        'description': u'SQL script will be executed by cursor from pyhdb library.',
+        'url': '/api/v2.0/db',
+        'done': True
     }
 ]
 
@@ -52,32 +63,64 @@ def bad_request():
     br_resp = jsonify(br_err)
     return br_resp
 
-@save_to_HANA
 def save_data(data):
     with open('.//API_data.txt', 'a') as f:
         f.write(data+'\n')
 
-class save_to_HANA(object):
-    def __init__(self, arg0):
-        self.arg0 = arg0
-        print('Inside __init__()\nself.arg0 = {}'.format(arg0))
+#def printer(message):
+#    return message
 
-    def __call__(self, decorated_function):
-        print('Inside __call__()\nRun function "save_2_DB".')
-        decorated_function(self.arg0)
-        self.save_2_DB(self.arg0)
+@app.route('/api/v2.0/db', methods = ['POST'])
+def save_to_HANA():
+    # Get posted json data.
+    if request.headers['Content-Type'] == 'application/json' or request.headers['Content-Type'].lower() == 'application/json; charset=utf-8':# or request.headers['Content-Type'] == 'multipart/form-data':
+        json_hana = json.loads(json.dumps(request.json))
+        host = json_hana['host']
+        port = json_hana['port']
+        user = json_hana['user']
+        password = json_hana['password']
 
-    def save_2_DB(self, data):
-        connection = pyhdb.connect(python decorators use numerous arguments
-            host = "<CloudFoundry_productive_account_host>",
-            port = 30015,
-            user = "CloudFoundry_productive_account_user",
-            password = "CloudFoundry_productive_account_password")
+        if "schema" in json_hana:
+            schema = json_hana["schema"]
+        else:
+            schema = None
 
-        cursor = connection.cursor()
-        cursor.execute("INSERT INTO SOME_TABLE VALUES {}".format(data))
-        cursor.fetchone()
-        connection.close()
+        data = json_hana['data']
+
+
+        data_dict = eval(data)
+
+        text = data_dict["text"]
+        price = data_dict["price"]
+
+        info_conn = '|info| Connection to {}:{} .'.format(host, port)
+
+        save_connDB(host, port, user, password, schema, text, price)
+
+        response_stH = 'All data is posted: ' + '\n' + str(data)
+        return info_conn + '\n' + response_stH
+
+
+def save_connDB(host_, port_, user_, password_, schema_, text_, price_):
+    connection = pyhdb.connect(
+        host = host_,
+        port = port_,
+        user = user_,
+        password = password_)
+
+    create = "CREATE TABLE TEST(text varchar(255), price float);"
+    insert = "INSERT INTO TEST_TABLE (text, price) VALUES ({}, {});".format('\''+text_+'\'', price_)
+    
+    cursor = connection.cursor()
+
+    try:
+        cursor.execute(create)
+        cursor.execute(insert)
+    except:
+        cursor.execute(insert)
+
+    connection.commit()
+    connection.close()
 
 if __name__ == '__main__':
     app.run(host = '0.0.0.0', port = port, debug=True)
